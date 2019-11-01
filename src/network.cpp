@@ -128,3 +128,63 @@ void Network::print_traj(const int time, const std::map<std::string, size_t> &_n
             }
     (*_out) << std::endl;
 }
+
+
+std::pair<size_t, double> Network::degree(const size_t& n) const {
+	double sum_link(0);
+    for (auto element: neighbors(n)) {
+	    sum_link += element.second;
+	}
+    std::pair<size_t, double> results(neighbors(n).size(), sum_link);
+	return results;
+}
+
+std::vector<std::pair<size_t, double> > Network::neighbors(const size_t& n) const {
+    std::vector<std::pair<size_t, double> > my_multiple_neighbors;
+    std::pair<size_t, double> paire(n,0);
+    auto iterator_on_linkmaps = links.lower_bound(paire); //start with lower bound
+
+    //iteration on every linkmaps that has a form of (n, x)
+    while (iterator_on_linkmaps->first.first == n and iterator_on_linkmaps->first.second < neurons.size()) {
+        my_multiple_neighbors.push_back(std::make_pair(iterator_on_linkmaps->first.second, iterator_on_linkmaps->second));
+        ++iterator_on_linkmaps;
+    }
+
+    return my_multiple_neighbors;
+}
+
+std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
+    double courant_synaptique(0);
+    double sum_excitators(0);
+    double sum_inhibitors(0);
+    std::set<size_t> firing_neurons;
+    auto en_feu = std::vector<bool>(neurons.size());
+    for (size_t i(0); i < neurons.size(); ++i) {
+        //check if neuron is firing
+        if (neurons[i].firing()) {
+            firing_neurons.insert(i);
+            en_feu.push_back(true);
+            neurons[i].reset();
+        } else en_feu.push_back(false);
+    }
+
+    //computes intensity sum of neighbor neurons
+    for (size_t i(0); i < neurons.size(); ++i) {
+        for (auto element:neighbors(i)) {
+            if (en_feu[element.first]) {
+                //firing_neurons.insert(element.first);
+                if (neuron(element.first).is_inhibitory()) sum_inhibitors += element.second;
+                if (!neuron(element.first).is_inhibitory()) sum_excitators += element.second;
+            }
+        }
+
+        //computes courant synaptique
+        if (neurons[i].is_inhibitory())
+            courant_synaptique = thalamic_input[i] * 2.0 / 5.0 + 0.5 * sum_excitators + sum_inhibitors;
+        else courant_synaptique = thalamic_input[i] + 0.5 * sum_excitators + sum_inhibitors;
+        neurons[i].input(courant_synaptique);
+        neurons[i].step();
+    }
+    return firing_neurons;
+}
+
