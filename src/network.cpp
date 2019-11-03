@@ -185,7 +185,7 @@ std::set<size_t> Network::step(const std::vector<double>& thalamic_input) {
         neurons[i].input(courant_synaptique);
         neurons[i].step();
 
-        //resets courant_synaptique
+        //resets parameters
         courant_synaptique = 0;
         sum_excitators = 0;
         sum_inhibitors = 0;
